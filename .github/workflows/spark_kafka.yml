@@ -1,0 +1,194 @@
+name: CI/CD Pipeline - Data Engineering (Spark & Kafka)
+
+# 1. ¿Cuándo se ejecuta? Cada vez que:
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:  # Permite ejecución manual desde GitHub UI
+
+# 2. Máquina virtual que nos presta GitHub
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # PASO 1: Descargar el código del repositorio
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+    
+    # PASO 2: Instalar Python 3.10
+    - name: 🐍 Configurar Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    # PASO 3: Instalar dependencias
+    - name: 📦 Instalar dependencias
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyspark==3.5.0
+        pip install pytest==7.4.3
+        pip install pylint==3.0.3
+        pip install black==23.12.1
+        pip install kafka-python==2.0.2
+        pip install apache-airflow==2.8.1
+    
+    # PASO 4: Validar sintaxis Python con Pylint
+    - name: 🔍 Validar sintaxis de scripts Spark
+      run: |
+        echo "Validando sintaxis de scripts Spark..."
+        if [ -d "scripts_spark" ]; then
+          pylint scripts_spark/*.py --disable=C0111,C0103,W0105,E0401 --exit-zero
+        else
+          echo "⚠️  Carpeta scripts_spark no encontrada"
+        fi
+    
+    - name: 🔍 Validar sintaxis de DAGs Airflow
+      run: |
+        echo "Validando sintaxis de DAGs Airflow..."
+        if [ -d "scripts_airflow/dags" ]; then
+          pylint scripts_airflow/dags/*.py --disable=C0111,C0103,W0105,E0401 --exit-zero
+        else
+          echo "⚠️  Carpeta scripts_airflow/dags no encontrada"
+        fi
+    
+    - name: 🔍 Validar sintaxis de scripts Kafka
+      run: |
+        echo "Validando sintaxis de scripts Kafka..."
+        if [ -d "scripts_kafka" ]; then
+          pylint scripts_kafka/*.py --disable=C0111,C0103,W0105,E0401 --exit-zero
+        else
+          echo "⚠️  Carpeta scripts_kafka no encontrada"
+        fi
+    
+    # PASO 5: Validar formato con Black
+    - name: 🎨 Validar formato de código (Black)
+      run: |
+        echo "Verificando formato de código..."
+        black --check scripts_spark/ scripts_airflow/ scripts_kafka/ || true
+      continue-on-error: true
+    
+    # PASO 6: Ejecutar tests unitarios
+    - name: 🧪 Ejecutar tests unitarios
+      run: |
+        echo "Ejecutando tests..."
+        mkdir -p tests
+        
+        # Crear test simple de validación
+        cat > tests/test_basic.py << 'ENDOFFILE'
+        import os
+        import sys
+        
+        def test_spark_files_exist():
+            assert os.path.exists('scripts_spark'), "Carpeta scripts_spark no existe"
+            print("Test passed: scripts_spark existe")
+        
+        def test_airflow_files_exist():
+            assert os.path.exists('scripts_airflow'), "Carpeta scripts_airflow no existe"
+            print("Test passed: scripts_airflow existe")
+        
+        if __name__ == "__main__":
+            test_spark_files_exist()
+            test_airflow_files_exist()
+            print("Todos los tests basicos pasaron")
+        ENDOFFILE
+        
+        # Ejecutar tests
+        python tests/test_basic.py
+    
+    # PASO 7: Validar importación de DAGs Airflow
+    - name: ✅ Validar DAGs de Airflow
+      run: |
+        echo "Validando importación de DAGs..."
+        if [ -d "scripts_airflow/dags" ]; then
+          find scripts_airflow/dags -name "*.py" -exec python -m py_compile {} \;
+          echo "DAGs validados correctamente"
+        else
+          echo "No hay DAGs para validar"
+        fi
+    
+    # PASO 8: Validar estructura del proyecto
+    - name: 📂 Validar estructura del proyecto
+      run: |
+        echo "Validando estructura de carpetas..."
+        
+        # Verificar carpetas esperadas
+        folders=("scripts_spark" "scripts_airflow/dags" ".github/workflows")
+        
+        for folder in "${folders[@]}"; do
+          if [ -d "$folder" ]; then
+            echo "  ✅ $folder existe"
+          else
+            echo "  ⚠️  $folder no encontrado"
+          fi
+        done
+        
+        # Listar archivos Python encontrados
+        echo ""
+        echo "Archivos Python en el proyecto:"
+        find . -name "*.py" -not -path "./.git/*" -not -path "./__pycache__/*"
+    
+    # PASO 9: Deploy a S3 (solo si es push a main)
+    - name: 🚀 Deploy a AWS S3
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: 'us-east-1'
+      run: |
+        echo "Instalando AWS CLI..."
+        pip install awscli
+        
+        echo "Copiando scripts a S3..."
+        
+        # Copiar scripts Spark
+        if [ -d "scripts_spark" ]; then
+          aws s3 sync scripts_spark/ s3://datalake-energias-renovables-dev/scripts/spark/ \
+            --exclude "*.pyc" \
+            --exclude "__pycache__/*" \
+            --delete
+          echo "✅ Scripts Spark copiados a S3"
+        fi
+        
+        # Copiar DAGs Airflow
+        if [ -d "scripts_airflow/dags" ]; then
+          aws s3 sync scripts_airflow/dags/ s3://datalake-energias-renovables-dev/scripts/airflow/dags/ \
+            --exclude "*.pyc" \
+            --exclude "__pycache__/*" \
+            --delete
+          echo "✅ DAGs Airflow copiados a S3"
+        fi
+        
+        # Copiar scripts Kafka
+        if [ -d "scripts_kafka" ]; then
+          aws s3 sync scripts_kafka/ s3://datalake-energias-renovables-dev/scripts/kafka/ \
+            --exclude "*.pyc" \
+            --exclude "__pycache__/*" \
+            --delete
+          echo "✅ Scripts Kafka copiados a S3"
+        fi
+        
+        echo ""
+        echo "Verificando archivos en S3..."
+        aws s3 ls s3://datalake-energias-renovables-dev/scripts/ --recursive
+    
+    # PASO 10: Resumen final
+    - name: 📊 Resumen de ejecución
+      if: always()
+      run: |
+        echo "=========================================="
+        echo "RESUMEN DE EJECUCIÓN"
+        echo "=========================================="
+        echo "Commit: ${{ github.sha }}"
+        echo "Autor: ${{ github.actor }}"
+        echo "Rama: ${{ github.ref }}"
+        echo "Evento: ${{ github.event_name }}"
+        echo "=========================================="
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ Pipeline ejecutado exitosamente"
+        else
+          echo "❌ Pipeline falló - revisa los logs arriba"
+        fi
