@@ -1,6 +1,6 @@
 # Pipeline ETLT - Análisis de Potencial Energético Renovable
 
-![CI/CD Status](https://github.com/TU_USUARIO/pipeline-energias-renovables/actions/workflows/spark_kafka.yml/badge.svg)
+![CI/CD Status](https://github.com/adriangoll/pipeline-energias-renovables/actions/workflows/spark_kafka.yml/badge.svg)
 
 ## 📊 Descripción
 
