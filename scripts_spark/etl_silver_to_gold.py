@@ -19,7 +19,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, hour, dayofmonth, month, year, date_format,
     avg, max, min, sum, count, round as spark_round,
-    when, lit, row_number
+    when, lit, row_number, abs as spark_abs
 )
 from pyspark.sql.window import Window
 
@@ -72,7 +72,7 @@ def main():
         df_potencial_solar = df_silver \
             .withColumn("factor_hora", 
                 when((col("hour") >= 6) & (col("hour") <= 18), 
-                     1.0 - abs(col("hour") - 12) / 12.0)
+                     1.0 - spark_abs(col("hour") - 12) / 12.0)
                 .otherwise(0.0)
             ) \
             .withColumn("potencial_solar_kwh_m2", 
