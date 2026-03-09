@@ -33,7 +33,7 @@ def main():
         .config("spark.hadoop.fs.s3a.aws.credentials.provider",
                 "com.amazonaws.auth.EnvironmentVariableCredentialsProvider") \
         .config("spark.hadoop.fs.s3a.access.key",
-                os.environ.get("AWS_ACCESS_KEY_ID", "")) \
+                os.environ.get("AWS_ACCES_KEY_ID", "")) \
         .config("spark.hadoop.fs.s3a.secret.key",
                 os.environ.get("AWS_SECRET_ACCESS_KEY", "")) \
         .config("spark.sql.parquet.compression.codec", "snappy") \
