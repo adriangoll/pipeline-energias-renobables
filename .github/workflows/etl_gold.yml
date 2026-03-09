@@ -28,7 +28,7 @@ jobs:
       - name: Download Hadoop AWS JARs
         run: |
           mkdir -p $HOME/spark-jars
-          wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.0/hadoop-aws-3.4.0.jar -P $HOME/spark-jars/
+          wget -q https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.4.4/hadoop-aws-3.4.4.jar -P $HOME/spark-jars/
           wget -q https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.367/aws-java-sdk-bundle-1.12.367.jar -P $HOME/spark-jars/
       
       - name: Run ETL Silver to Gold
@@ -38,5 +38,5 @@ jobs:
           AWS_DEFAULT_REGION: us-east-1
         run: |
           # $HOME se expande correctamente acá, no en el bloque env:
-          export PYSPARK_SUBMIT_ARGS="--jars $HOME/spark-jars/hadoop-aws-3.4.0.jar,$HOME/spark-jars/aws-java-sdk-bundle-1.12.367.jar pyspark-shell"
+          export PYSPARK_SUBMIT_ARGS="--jars $HOME/spark-jars/hadoop-aws-3.4.4.jar,$HOME/spark-jars/aws-java-sdk-bundle-1.12.367.jar pyspark-shell"
           python scripts_spark/etl_silver_to_gold.py
