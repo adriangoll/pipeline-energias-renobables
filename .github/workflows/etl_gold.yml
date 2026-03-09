@@ -3,10 +3,10 @@ name: ETL Silver to Gold
 on:
   push:
     branches:
-      - main          # se ejecuta en cada push a main
+      - main
   schedule:
-    - cron: '0 6 * * *'   # también a las 6 AM UTC cada día (opcional, borrá si no querés)
-  workflow_dispatch:        # mantiene la opción manual también
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   etl-gold:
@@ -31,6 +31,4 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          # $HOME se expande correctamente acá, no en el bloque env:
-          export PYSPARK_SUBMIT_ARGS="--jars $HOME/spark-jars/hadoop-aws-3.4.4.jar,$HOME/spark-jars/aws-java-sdk-bundle-1.12.367.jar pyspark-shell"
           python scripts_spark/etl_silver_to_gold.py

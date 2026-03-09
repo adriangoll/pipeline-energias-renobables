@@ -13,6 +13,7 @@ Preguntas de Negocio:
 5. ¿Días con mayor y menor potencial energético?
 """
 
+import os
 import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
@@ -23,11 +24,18 @@ from pyspark.sql.functions import (
 from pyspark.sql.window import Window
 
 def main():
-    # Configuración de Spark
     spark = SparkSession.builder \
         .appName("ETL_Silver_to_Gold") \
-        .config("spark.hadoop.fs.s3a.aws.credentials.provider", 
-                "com.amazonaws.auth.InstanceProfileCredentialsProvider") \
+        .config("spark.jars.packages",
+                "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.367") \
+        .config("spark.hadoop.fs.s3a.impl",
+                "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        .config("spark.hadoop.fs.s3a.aws.credentials.provider",
+                "com.amazonaws.auth.EnvironmentVariableCredentialsProvider") \
+        .config("spark.hadoop.fs.s3a.access.key",
+                os.environ.get("AWS_ACCESS_KEY_ID", "")) \
+        .config("spark.hadoop.fs.s3a.secret.key",
+                os.environ.get("AWS_SECRET_ACCESS_KEY", "")) \
         .config("spark.sql.parquet.compression.codec", "snappy") \
         .getOrCreate()
 
@@ -48,7 +56,6 @@ def main():
         
         print(f"   ✅ Registros leídos: {df_silver.count():,}")
         
-        # Agregar columnas de tiempo derivadas
         df_silver = df_silver \
             .withColumn("timestamp", col("dt").cast("timestamp")) \
             .withColumn("year", year(col("timestamp"))) \
@@ -61,16 +68,6 @@ def main():
         # TABLA 1: Potencial Solar (Pregunta 1)
         # ============================================================
         print("\n🌞 PASO 2: Generando tabla 'potencial_solar'...")
-        
-        """
-        Estima el potencial solar basado en:
-        - UV Index (indicador directo de radiación)
-        - Nubosidad (reduce radiación disponible)
-        - Hora del día (radiación mayor al mediodía)
-        
-        Fórmula simplificada:
-        Potencial Solar = UV Index * (1 - nubosidad/100) * factor_hora
-        """
         
         df_potencial_solar = df_silver \
             .withColumn("factor_hora", 
@@ -94,7 +91,6 @@ def main():
             ) \
             .orderBy("city", "year", "month", "day", "hour")
         
-        # Escribir a Gold
         gold_solar_path = "s3a://datalake-energias-renovables-dev/gold/potencial_solar/"
         df_potencial_solar.write \
             .mode("overwrite") \
@@ -107,20 +103,6 @@ def main():
         # TABLA 2: Potencial Eólico (Pregunta 2)
         # ============================================================
         print("\n💨 PASO 3: Generando tabla 'potencial_eolico'...")
-        
-        """
-        Estima el potencial eólico basado en:
-        - Velocidad del viento (potencia ∝ velocidad³)
-        - Densidad del aire (función de presión y temperatura)
-        
-        Fórmula: P = 0.5 × ρ × A × v³
-        Donde:
-        - ρ = densidad del aire ≈ P / (R × T)
-        - P = presión atmosférica
-        - T = temperatura en Kelvin
-        - v = velocidad del viento
-        - A = área del rotor (asumimos 1 m² para comparación)
-        """
         
         df_potencial_eolico = df_silver \
             .withColumn("temp_kelvin", col("temp") + 273.15) \
@@ -144,7 +126,6 @@ def main():
             ) \
             .orderBy("city", "year", "month", "day")
         
-        # Escribir a Gold
         gold_eolico_path = "s3a://datalake-energias-renovables-dev/gold/potencial_eolico/"
         df_potencial_eolico.write \
             .mode("overwrite") \
@@ -157,13 +138,6 @@ def main():
         # TABLA 3: Condiciones Climáticas Críticas (Pregunta 3)
         # ============================================================
         print("\n⚠️  PASO 4: Generando tabla 'condiciones_criticas'...")
-        
-        """
-        Identifica condiciones que reducen significativamente el potencial renovable:
-        - Alta nubosidad (>80%) → reduce solar
-        - Baja velocidad viento (<3 m/s) → reduce eólico
-        - Alta humedad + lluvia → condiciones adversas
-        """
         
         df_condiciones_criticas = df_silver \
             .withColumn("reduccion_solar", 
@@ -197,7 +171,6 @@ def main():
             ) \
             .orderBy("city", "year", "month", col("ocurrencias").desc())
         
-        # Escribir a Gold
         gold_criticas_path = "s3a://datalake-energias-renovables-dev/gold/condiciones_criticas/"
         df_condiciones_criticas.write \
             .mode("overwrite") \
@@ -207,15 +180,10 @@ def main():
         print(f"   ✅ Tabla 'condiciones_criticas' creada: {df_condiciones_criticas.count():,} registros")
 
         # ============================================================
-        # TABLA 4: Análisis Comparativo Riohacha vs Patagonia (Pregunta 5)
+        # TABLA 4: Análisis Comparativo (Pregunta 5)
         # ============================================================
         print("\n📊 PASO 5: Generando tabla 'analisis_comparativo'...")
         
-        """
-        Compara métricas clave entre ambas ubicaciones
-        """
-        
-        # Calcular potencial solar y eólico para cada ciudad
         df_comparativo = df_silver \
             .withColumn("potencial_solar_estimado",
                 col("uv_index") * (1.0 - col("clouds") / 100.0)
@@ -225,27 +193,19 @@ def main():
             ) \
             .groupBy("city", "year", "month") \
             .agg(
-                # Métricas solares
                 avg("potencial_solar_estimado").alias("potencial_solar_promedio"),
                 max("uv_index").alias("uv_index_maximo"),
                 avg("clouds").alias("nubosidad_promedio"),
-                
-                # Métricas eólicas
                 avg("potencial_eolico_estimado").alias("potencial_eolico_promedio"),
                 avg("wind_speed").alias("velocidad_viento_promedio"),
                 max("wind_speed").alias("velocidad_viento_maxima"),
-                
-                # Métricas climáticas
                 avg("temp").alias("temperatura_promedio"),
                 avg("humidity").alias("humedad_promedio"),
                 avg("pressure").alias("presion_promedio"),
-                
-                # Contadores
                 count("*").alias("total_mediciones")
             ) \
             .orderBy("year", "month", "city")
         
-        # Escribir a Gold
         gold_comparativo_path = "s3a://datalake-energias-renovables-dev/gold/analisis_comparativo/"
         df_comparativo.write \
             .mode("overwrite") \
@@ -259,11 +219,6 @@ def main():
         # ============================================================
         print("\n🏆 PASO 6: Generando tabla 'ranking_dias'...")
         
-        """
-        Identifica los mejores y peores días para generación de energía
-        """
-        
-        # Calcular score combinado (solar + eólico) por día
         df_dias = df_silver \
             .groupBy("city", "date", "year", "month", "day") \
             .agg(
@@ -282,7 +237,6 @@ def main():
                 spark_round(col("score_solar") + col("score_eolico"), 2)
             )
         
-        # Ranking de mejores días por ciudad
         window_top = Window.partitionBy("city").orderBy(col("score_total").desc())
         window_worst = Window.partitionBy("city").orderBy(col("score_total").asc())
         
@@ -302,7 +256,6 @@ def main():
             ) \
             .orderBy("city", col("score_total").desc())
         
-        # Escribir a Gold
         gold_ranking_path = "s3a://datalake-energias-renovables-dev/gold/ranking_dias/"
         df_ranking.write \
             .mode("overwrite") \
@@ -319,11 +272,11 @@ def main():
         print("=" * 80)
         
         print("\n📊 TABLAS GENERADAS EN GOLD:")
-        print(f"   1. potencial_solar     → Variación horaria/mensual del potencial solar")
-        print(f"   2. potencial_eolico    → Patrones históricos de potencial eólico")
+        print(f"   1. potencial_solar      → Variación horaria/mensual del potencial solar")
+        print(f"   2. potencial_eolico     → Patrones históricos de potencial eólico")
         print(f"   3. condiciones_criticas → Condiciones que reducen potencial renovable")
         print(f"   4. analisis_comparativo → Comparación Riohacha vs Patagonia")
-        print(f"   5. ranking_dias        → Top 10 mejores/peores días por ciudad")
+        print(f"   5. ranking_dias         → Top 10 mejores/peores días por ciudad")
         
         print("\n💡 CONSUMO DE DATOS:")
         print("   Las tablas están optimizadas para herramientas de BI:")
