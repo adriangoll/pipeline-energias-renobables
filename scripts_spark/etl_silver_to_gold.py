@@ -69,7 +69,7 @@ def main():
         - Hora del día (radiación mayor al mediodía)
         
         Fórmula simplificada:
-        Potencial Solar = UV Index × (1 - nubosidad/100) × factor_hora
+        Potencial Solar = UV Index * (1 - nubosidad/100) * factor_hora
         """
         
         df_potencial_solar = df_silver \

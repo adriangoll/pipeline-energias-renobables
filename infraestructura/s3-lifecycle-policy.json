@@ -1,0 +1,66 @@
+{
+  "Rules": [
+    {
+      "Id": "ArchivarBronzeBatch",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "bronze/batch/"
+      },
+      "Transitions": [
+        {
+          "Days": 365,
+          "StorageClass": "GLACIER"
+        }
+      ],
+      "NoncurrentVersionTransitions": [
+        {
+          "NoncurrentDays": 30,
+          "StorageClass": "GLACIER"
+        }
+      ]
+    },
+    {
+      "Id": "LimpiarBronzeStreaming",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "bronze/streaming/"
+      },
+      "Expiration": {
+        "Days": 30
+      }
+    },
+    {
+      "Id": "ArchivarSilver",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "silver/"
+      },
+      "Transitions": [
+        {
+          "Days": 730,
+          "StorageClass": "DEEP_ARCHIVE"
+        }
+      ]
+    },
+    {
+      "Id": "LimpiarGold",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "gold/"
+      },
+      "Expiration": {
+        "Days": 365
+      }
+    },
+    {
+      "Id": "LimpiarCheckpoints",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "checkpoints/"
+      },
+      "Expiration": {
+        "Days": 90
+      }
+    }
+  ]
+}

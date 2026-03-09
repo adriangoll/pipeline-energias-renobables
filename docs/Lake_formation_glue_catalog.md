@@ -12,7 +12,7 @@
 1. [Conceptos Clave](#conceptos)
 2. [Implementación en el Proyecto](#implementacion)
 3. [Capturas de Configuración](#capturas)
-4. [Para la Defensa](#defensa)
+4. [Explicación](#Explicación)
 
 ---
 
@@ -108,7 +108,7 @@ aws glue create-database --database-input '{"Name": "silver_db"}'
 aws glue create-database --database-input '{"Name": "gold_db"}'
 ```
 
-**📸 CAPTURA 2:** Databases creadas
+![Tabla de instancias](imagenes/glue-crawler/databases-created.png)
 
 ---
 
@@ -134,7 +134,7 @@ aws glue create-crawler --name crawler-silver-weather \
   --targets '{"S3Targets": [{"Path": "s3://datalake-energias-renovables-dev/silver/weather_unified/"}]}'
 ```
 
-**📸 CAPTURA 1:** Crawler creado y configurado
+![Tabla de instancias](imagenes/glue-crawler/crawler-created-config.png)
 
 ---
 
@@ -144,7 +144,7 @@ aws glue create-crawler --name crawler-silver-weather \
 aws glue start-crawler --name crawler-silver-weather
 ```
 
-**📸 CAPTURA 4:** Crawler ejecutado exitosamente (`State: SUCCEEDED`)
+![Tabla de instancias](imagenes/glue-crawler/crawler-created-config.png)
 
 **Resultado:**
 - ✅ Tabla `weather_unified` creada en `silver_db`
@@ -159,7 +159,7 @@ aws glue start-crawler --name crawler-silver-weather
 aws glue get-tables --database-name silver_db
 ```
 
-**📸 CAPTURA 3:** Tabla vacía (aún sin datos en Silver, ejecutar ETL primero)
+![Tabla de instancias](imagenes/glue-crawler/glue-tables-empty.png)
 
 **Metadata de la tabla:**
 ```json
@@ -202,76 +202,10 @@ aws s3api put-bucket-lifecycle-configuration \
 **Beneficio:**  
 Reduce costos automáticamente moviendo datos antiguos a storage classes más baratos o eliminándolos.
 
----
-
-<a name="capturas"></a>
-## 3. Capturas de Configuración
-
-### **CAPTURA 1: Crawler Configurado**
-![Crawler Configurado](docs/imagenes/glue/01_crawler_configurado.png)
-
-**Muestra:**
-- Nombre: `crawler-silver-weather`
-- Role: `GlueCrawlerRole`
-- Target: `s3://datalake-energias-renovables-dev/silver/weather_unified/`
-- Database: `silver_db`
 
 ---
 
-### **CAPTURA 2: Databases Creadas**
-![Databases Creadas](docs/imagenes/glue/02_databases_creadas.png)
-
-**Muestra:**
-```json
-{
-  "DatabaseList": [
-    {"Name": "gold_db", "CreateTime": "2026-03-08T19:59:11-03:00"},
-    {"Name": "silver_db", "CreateTime": "2026-03-08T19:57:42-03:00"}
-  ]
-}
-```
-
----
-
-### **CAPTURA 3: Tabla Vacía (Pre-ETL)**
-![Tabla Vacía](docs/imagenes/glue/03_tabla_vacia.png)
-
-**Muestra:**
-```json
-{"TableList": []}
-```
-
-**Razón:** El ETL Bronze → Silver aún no se ejecutó, por lo que no hay archivos Parquet en Silver para catalogar.
-
----
-
-### **CAPTURA 4: Crawler Exitoso**
-![Crawler Exitoso](docs/imagenes/glue/04_crawler_exitoso.png)
-
-**Muestra:**
-```json
-{
-  "Crawler": {
-    "Name": "crawler-silver-weather",
-    "State": "READY",
-    "LastCrawl": {
-      "Status": "SUCCEEDED",
-      "StartTime": "2026-03-08T20:22:13-03:00"
-    }
-  }
-}
-```
-
----
-
-### **CAPTURA 5: Crawler Duplicado (Corrección)**
-![Crawler Re-creado](docs/imagenes/glue/05_crawler_recreado.png)
-
-**Nota:** Se recreó el crawler porque el primero tenía un error de configuración.
-
----
-
-## 4. Consultas con Athena
+## 3. Consultas con Athena
 
 Una vez que el ETL Bronze → Silver genere archivos Parquet, se puede consultar con Athena:
 
@@ -298,7 +232,7 @@ LIMIT 10;
 
 <a name="Explicación"></a>
 
-### 5 Explicación
+### 4 Explicación
 
 **Glue Data Catalog:**
 
