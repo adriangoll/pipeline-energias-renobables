@@ -1,17 +1,19 @@
-# Airflow
-apache-airflow==2.8.1
-apache-airflow-providers-ssh==3.10.0
+# ============================================================
+# DEPENDENCIAS MÍNIMAS PARA EL DASHBOARD
+# Pipeline ETLT - Energías Renovables
+# ============================================================
+# Solo lo necesario para ejecutar el dashboard de Streamlit
 
-# Spark
-pyspark==3.5.0
+# Dashboard
+streamlit
+plotly
 
-# AWS
-boto3==1.34.0
+# Procesamiento de datos
+pandas
+pyarrow
 
-# Testing
-pytest==7.4.3
-pytest-cov==4.1.0
+# AWS (para leer de S3)
+boto3
 
-# Linting
-pylint==3.0.3
-black==23.12.1
+# Utilidades
+requests
