@@ -229,9 +229,9 @@ consolidacion_streaming_12h = DAG(
 
 ---
 
-## 🎯 Para la Defensa
+## 🎯 Comentarios
 
-**Mencionar:**
+
 
 > "Implementé un pipeline de streaming en tiempo real con Apache Kafka para complementar la ingesta batch de Airbyte.
 >
