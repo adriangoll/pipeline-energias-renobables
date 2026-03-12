@@ -119,7 +119,7 @@ def main():
             .agg(
                 avg("potencial_eolico_w").alias("potencial_eolico_promedio_w"),
                 max("potencial_eolico_w").alias("potencial_eolico_maximo_w"),
-                avg("wind_speed").alias("velocidad_viento_promedio_ms"),
+                avg("wind_speed").alias("velocidad_viento_promedio"),
                 max("wind_speed").alias("velocidad_viento_maxima_ms"),
                 avg("wind_deg").alias("direccion_viento_promedio"),
                 count("*").alias("mediciones")
